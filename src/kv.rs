@@ -105,5 +105,5 @@ where
     let decoded_byte_array = base64::decode(raw_base64_string).unwrap();
     let decoded_string = std::str::from_utf8(&decoded_byte_array).unwrap();
 
-    Ok(decoded_string.to_string()
+    Ok(decoded_string.to_string())
 }
