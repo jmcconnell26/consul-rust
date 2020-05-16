@@ -32,7 +32,7 @@ pub struct Client {
 
 impl Client {
     pub fn new(config: Config) -> Self {
-        Client { config: config }
+        Client { config }
     }
 }
 
@@ -75,7 +75,7 @@ impl Config {
             .build()
             .chain_err(|| "Failed to build reqwest client")
             .map(|client| Config {
-                address: String::from(consul_addr),
+                address: consul_addr,
                 datacenter: None,
                 http_client: client,
                 token: consul_token,
