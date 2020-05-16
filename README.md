@@ -1,6 +1,6 @@
 ## consul-rust
 
-[![Build Status](https://travis-ci.org/stusmall/consul-rust.svg)](https://travis-ci.org/stusmall/consul-rust.svg)
+![Rust](https://github.com/jmcconnell26/consul-rust/workflows/Rust/badge.svg?branch=master)
 [![](https://img.shields.io/crates/v/consul.svg)](https://crates.io/crates/consul)
 
 [Documentation here](https://docs.rs/consul/).
