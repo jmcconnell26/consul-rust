@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::errors::Result;
-use crate::request::{get, put};
+use crate::request::{get, get_vec, put};
 use crate::Client;
 
 #[serde(default)]
@@ -50,12 +50,13 @@ pub struct AgentService {
 //I haven't implemetned https://www.consul.io/api/agent.html#stream-logs
 pub trait Agent {
     fn checks(&self) -> Result<HashMap<String, AgentCheck>>;
-    fn members(&self, wan: bool) -> Result<AgentMember>;
-    fn reload(&self) -> Result<()>;
-    fn maintenance_mode(&self, enable: bool, reason: Option<&str>) -> Result<()>;
+    fn force_leave(&self) -> Result<()>;
     fn join(&self, address: &str, wan: bool) -> Result<()>;
     fn leave(&self) -> Result<()>;
-    fn force_leave(&self) -> Result<()>;
+    fn maintenance_mode(&self, enable: bool, reason: Option<&str>) -> Result<()>;
+    fn members(&self, wan: bool) -> Result<Vec<AgentMember>>;
+    //fn read_configuration(&self) -> Result<String>;
+    fn reload(&self) -> Result<()>;
 }
 
 impl Agent for Client {
@@ -63,18 +64,11 @@ impl Agent for Client {
     fn checks(&self) -> Result<HashMap<String, AgentCheck>> {
         get("/v1/agent/checks", &self.config, HashMap::new(), None).map(|x| x.0)
     }
-    /// https://www.consul.io/api/agent.html#list-members
-    fn members(&self, wan: bool) -> Result<AgentMember> {
-        let mut params = HashMap::new();
-        if wan {
-            params.insert(String::from("wan"), String::from("1"));
-        }
-        get("/v1/agent/members", &self.config, params, None).map(|x| x.0)
-    }
-    /// https://www.consul.io/api/agent.html#reload-agent
-    fn reload(&self) -> Result<()> {
+
+    /// https://www.consul.io/api/agent.html#force-leave-and-shutdown
+    fn force_leave(&self) -> Result<()> {
         put(
-            "/v1/agent/reload",
+            "/v1/agent/force-leave",
             None as Option<&()>,
             &self.config,
             HashMap::new(),
@@ -83,28 +77,7 @@ impl Agent for Client {
         .map(|x| x.0)
     }
 
-    /// https://www.consul.io/api/agent.html#reload-agent
-    fn maintenance_mode(&self, enable: bool, reason: Option<&str>) -> Result<()> {
-        let mut params = HashMap::new();
-        let enable_str = if enable {
-            String::from("true")
-        } else {
-            String::from("false")
-        };
-        params.insert(String::from("enabled"), enable_str);
-        if let Some(r) = reason {
-            params.insert(String::from("reason"), r.to_owned());
-        }
-        put(
-            "/v1/agent/maintenance",
-            None as Option<&()>,
-            &self.config,
-            params,
-            None,
-        )
-        .map(|x| x.0)
-    }
-    ///https://www.consul.io/api/agent.html#join-agent
+    /// https://www.consul.io/api/agent.html#join-agent
     fn join(&self, address: &str, wan: bool) -> Result<()> {
         let mut params = HashMap::new();
 
@@ -127,10 +100,46 @@ impl Agent for Client {
         .map(|x| x.0)
     }
 
-    ///https://www.consul.io/api/agent.html#force-leave-and-shutdown
-    fn force_leave(&self) -> Result<()> {
+    /// https://www.consul.io/api-docs/agent#enable-maintenance-mode
+    fn maintenance_mode(&self, enable: bool, reason: Option<&str>) -> Result<()> {
+        let mut params = HashMap::new();
+        let enable_str = if enable {
+            String::from("true")
+        } else {
+            String::from("false")
+        };
+        params.insert(String::from("enable"), enable_str);
+        if let Some(r) = reason {
+            params.insert(String::from("reason"), r.to_owned());
+        }
         put(
-            "/v1/agent/force-leave",
+            "/v1/agent/maintenance",
+            None as Option<&()>,
+            &self.config,
+            params,
+            None,
+        )
+        .map(|x| x.0)
+    }
+    /// https://www.consul.io/api/agent.html#list-members
+    fn members(&self, wan: bool) -> Result<Vec<AgentMember>> {
+        let mut params = HashMap::new();
+        if wan {
+            params.insert(String::from("wan"), String::from("1"));
+        }
+
+        get_vec("/v1/agent/members", &self.config, params, None).map(|x| x.0)
+    }
+
+    // /// https://www.consul.io/api/agent.html#read-configuration
+    //fn read_configuration(&self) -> Result<String> {
+    //    get("/v1/agent/self", &self.config, HashMap::new(), None)?.text()?.body;
+    //}
+
+    /// https://www.consul.io/api/agent.html#reload-agent
+    fn reload(&self) -> Result<()> {
+        put(
+            "/v1/agent/reload",
             None as Option<&()>,
             &self.config,
             HashMap::new(),

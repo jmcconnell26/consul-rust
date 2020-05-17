@@ -144,9 +144,9 @@ fn session_node_test() {
 
     let created_session_entry_id = created_session_entry.ID.unwrap();
 
-    let system_hostname = hostname::get().unwrap().into_string().unwrap();
+    let node_name_of_session = get_node_name_of_session(&client, &created_session_entry_id);
 
-    let (session_entries, _) = client.node(&system_hostname, None).unwrap();
+    let (session_entries, _) = client.node(&node_name_of_session, None).unwrap();
 
     let filtered_session_entries = session_entries
         .iter()
@@ -201,4 +201,12 @@ fn get_number_of_session_entries_with_matching_name(
         .collect::<Vec<&SessionEntry>>();
 
     return filtered_session_entries.len();
+}
+
+fn get_node_name_of_session(client: &Client, session_id: &str) -> String {
+    let (session_entries_info, _) = client.info(session_id, None).unwrap();
+
+    let session_entry_info = session_entries_info.iter().next().unwrap();
+
+    String::from(session_entry_info.Node.as_ref().unwrap())
 }
