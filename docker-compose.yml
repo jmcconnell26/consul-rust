@@ -1,0 +1,38 @@
+version: '2.0'
+services:
+  consul-server-alpha-1:
+    image: consul:latest
+    hostname: "consul-server-alpha-1"
+    ports:
+      - "8400:8400"
+      - "8500:8500"
+      - "8600:8600"
+    command: "agent -server -bootstrap-expect 3 -ui -disable-host-node-id -client 0.0.0.0 -datacenter alpha -retry-join-wan consul-server-beta-1 -retry-join-wan consul-server-beta-1 -retry-join-wan consul-server-beta-3"
+  consul-server-alpha-2:
+    image: consul:latest
+    hostname: "consul-server-alpha-2"
+    command: "agent -server -join consul-server-alpha-1 -disable-host-node-id -datacenter alpha -retry-join-wan consul-server-beta-1 -retry-join-wan consul-server-beta-1 -retry-join-wan consul-server-beta-3"
+    depends_on: 
+      - consul-server-alpha-1
+  consul-server-alpha-3:
+    image: consul:latest
+    hostname: "consul-server-alpha-3"
+    command: "agent -server -join consul-server-alpha-1 -disable-host-node-id -datacenter alpha -retry-join-wan consul-server-beta-1 -retry-join-wan consul-server-beta-1 -retry-join-wan consul-server-beta-3"
+    depends_on:
+      - consul-server-alpha-1
+  consul-server-beta-1:
+    image: consul:latest
+    hostname: "consul-server-beta-1"
+    command: "agent -server -bootstrap-expect 3 -ui -disable-host-node-id -client 0.0.0.0 -datacenter beta -retry-join-wan consul-server-alpha-1 -retry-join-wan consul-server-alpha-2 -retry-join-wan consul-server-alpha-3"
+  consul-server-beta-2:
+    image: consul:latest
+    hostname: "consul-server-beta-2"
+    command: "agent -server -join consul-server-beta-1 -disable-host-node-id -datacenter beta -retry-join-wan consul-server-alpha-1 -retry-join-wan consul-server-alpha-2 -retry-join-wan consul-server-alpha-3"
+    depends_on: 
+      - consul-server-beta-1
+  consul-server-beta-3:
+    image: consul:latest
+    hostname: "consul-server-beta-3"
+    command: "agent -server -join consul-server-beta-1 -disable-host-node-id -datacenter beta -retry-join-wan consul-server-alpha-1 -retry-join-wan consul-server-alpha-2 -retry-join-wan consul-server-alpha-3"
+    depends_on:
+      - consul-server-beta-1
