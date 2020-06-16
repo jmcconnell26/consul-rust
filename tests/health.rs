@@ -14,7 +14,7 @@ fn health_service_test_passing_only() {
         .service("consul", Option::None, true, Option::None)
         .unwrap();
 
-    assert_eq!(service_entries.len(), 1);
+    assert_eq!(service_entries.len(), 3);
 
     let service_entry = service_entries.iter().next().unwrap();
 

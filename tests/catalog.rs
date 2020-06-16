@@ -7,7 +7,7 @@ fn ds_test() {
     let config = Config::new_from_env().unwrap();
     let client = Client::new(config);
     let r = client.datacenters().unwrap();
-    assert_eq!(r.0, ["dc1"]);
+    assert_eq!(r.0, ["alpha","beta"]);
 }
 
 #[test]
