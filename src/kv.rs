@@ -4,8 +4,8 @@ use std::collections::HashMap;
 
 use crate::errors::Error;
 use crate::errors::Result;
-use crate::request::{delete, get, put};
-use crate::request::get::{get_vec};
+use crate::request::{delete, put};
+use crate::request::get_requests::{get, get_vec};
 use crate::{Client, QueryMeta, QueryOptions, WriteMeta, WriteOptions};
 
 use serde::{Deserialize, Deserializer};
