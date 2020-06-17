@@ -20,21 +20,7 @@ pub fn get<R: DeserializeOwned>(
     mut params: HashMap<String, String>,
     options: Option<&QueryOptions>,
 ) -> Result<(R, QueryMeta)> {
-    let datacenter: Option<&String> = options
-        .and_then(|o| o.datacenter.as_ref())
-        .or_else(|| config.datacenter.as_ref());
-
-    if let Some(dc) = datacenter {
-        params.insert(String::from("dc"), dc.to_owned());
-    }
-    if let Some(options) = options {
-        if let Some(index) = options.wait_index {
-            params.insert(String::from("index"), index.to_string());
-        }
-        if let Some(wait_time) = options.wait_time {
-            params.insert(String::from("wait"), format!("{}s", wait_time.as_secs()));
-        }
-    }
+    update_params_with_options(config, &mut params, options);
 
     let url_str = format!("{}{}", config.address, path);
     let url =
@@ -80,21 +66,7 @@ pub fn get_vec<R: DeserializeOwned>(
     mut params: HashMap<String, String>,
     options: Option<&QueryOptions>,
 ) -> Result<(Vec<R>, QueryMeta)> {
-    let datacenter: Option<&String> = options
-        .and_then(|o| o.datacenter.as_ref())
-        .or_else(|| config.datacenter.as_ref());
-
-    if let Some(dc) = datacenter {
-        params.insert(String::from("dc"), dc.to_owned());
-    }
-    if let Some(options) = options {
-        if let Some(index) = options.wait_index {
-            params.insert(String::from("index"), index.to_string());
-        }
-        if let Some(wait_time) = options.wait_time {
-            params.insert(String::from("wait"), format!("{}s", wait_time.as_secs()));
-        }
-    }
+    update_params_with_options(config, &mut params, options);
 
     let url_str = format!("{}{}", config.address, path);
     let url =
@@ -138,3 +110,48 @@ pub fn get_vec<R: DeserializeOwned>(
         })
 }
 
+fn update_params_with_options(
+    config: &Config,
+    params: &mut HashMap<String, String>,
+    options: Option<&QueryOptions>) {
+    let datacenter: Option<&String> = options
+        .and_then(|o| o.datacenter.as_ref())
+        .or_else(|| config.datacenter.as_ref());
+
+    if let Some(dc) = datacenter {
+        params.insert(String::from("dc"), dc.to_owned());
+    }
+    if let Some(options) = options {
+        if let Some(index) = options.wait_index {
+            params.insert(String::from("index"), index.to_string());
+        }
+        if let Some(wait_time) = options.wait_time {
+            params.insert(String::from("wait"), format!("{}s", wait_time.as_secs()));
+        }
+    }
+}
+
+#[cfg(test)]
+pub mod get_requests_tests {
+    use super::*;
+
+    #[test]
+    fn update_params_with_options_test_all_query_options() {
+        let config = Config::new().unwrap();
+        let mut params = HashMap::<String, String>::new();
+        let query_options = QueryOptions {
+            datacenter: Some(String::from("test_datacenter")),
+            wait_index: None,
+            wait_time:  None
+        };
+        
+        update_params_with_options(&config, &mut params, Some(&query_options));
+
+        for (param_name, param_value) in &params {
+            println!("{} - {}", param_name, param_value);
+        }
+
+        assert_eq!(params.len(), 1);
+        assert_eq!(params.get("dc").unwrap(), "test_datacenter");
+    }
+}
