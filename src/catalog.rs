@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::agent::{AgentCheck, AgentService};
 use crate::errors::Result;
-use crate::request::put;
 use crate::request::get_requests::get;
+use crate::request::put_requests::put;
 use crate::{Client, QueryMeta, QueryOptions, WriteMeta, WriteOptions};
 
 #[serde(default)]

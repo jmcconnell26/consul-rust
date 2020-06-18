@@ -12,7 +12,7 @@ use url::Url;
 
 use crate::{Config, QueryMeta, QueryOptions};
 use crate::errors::{Result, ResultExt};
-use crate::request::add_config_options;
+use crate::request::*;
 
 pub fn get<R: DeserializeOwned>(
     path: &str,
@@ -20,7 +20,7 @@ pub fn get<R: DeserializeOwned>(
     mut params: HashMap<String, String>,
     options: Option<&QueryOptions>,
 ) -> Result<(R, QueryMeta)> {
-    update_params_with_options(config, &mut params, options);
+    update_params_with_query_options(config, &mut params, options);
 
     let url_str = format!("{}{}", config.address, path);
     let url =
@@ -31,17 +31,17 @@ pub fn get<R: DeserializeOwned>(
     response
         .chain_err(|| "HTTP request to consul failed")
         .and_then(|r| {
-            let x: Option<Result<u64>> =
-                r.headers()
-                    .get("X-Consul-Index")
-                    .map(|bytes: &HeaderValue| -> Result<u64> {
-                        bytes
-                            .to_str()
-                            .chain_err(|| "Failed to parse valid UT8 for last index")
-                            .and_then(|s: &str| -> Result<u64> {
-                                u64::from_str(s)
-                                    .chain_err(|| "Failed to parse valid number for last index")
-                            })
+            let x: Option<Result<u64>> = r
+                .headers()
+                .get("X-Consul-Index")
+                .map(|bytes: &HeaderValue| -> Result<u64> {
+                    bytes
+                        .to_str()
+                        .chain_err(|| "Failed to parse valid UT8 for last index")
+                        .and_then(|s: &str| -> Result<u64> {
+                            u64::from_str(s)
+                                .chain_err(|| "Failed to parse valid number for last index")
+                        })
                     });
             let j = r.json().chain_err(|| "Failed to parse JSON response")?;
             match x {
@@ -66,7 +66,7 @@ pub fn get_vec<R: DeserializeOwned>(
     mut params: HashMap<String, String>,
     options: Option<&QueryOptions>,
 ) -> Result<(Vec<R>, QueryMeta)> {
-    update_params_with_options(config, &mut params, options);
+    update_params_with_query_options(config, &mut params, options);
 
     let url_str = format!("{}{}", config.address, path);
     let url =
@@ -107,51 +107,7 @@ pub fn get_vec<R: DeserializeOwned>(
                     request_time: Instant::now() - start,
                 },
             )
-        })
+        }
+    )
 }
 
-fn update_params_with_options(
-    config: &Config,
-    params: &mut HashMap<String, String>,
-    options: Option<&QueryOptions>) {
-    let datacenter: Option<&String> = options
-        .and_then(|o| o.datacenter.as_ref())
-        .or_else(|| config.datacenter.as_ref());
-
-    if let Some(dc) = datacenter {
-        params.insert(String::from("dc"), dc.to_owned());
-    }
-    if let Some(options) = options {
-        if let Some(index) = options.wait_index {
-            params.insert(String::from("index"), index.to_string());
-        }
-        if let Some(wait_time) = options.wait_time {
-            params.insert(String::from("wait"), format!("{}s", wait_time.as_secs()));
-        }
-    }
-}
-
-#[cfg(test)]
-pub mod get_requests_tests {
-    use super::*;
-
-    #[test]
-    fn update_params_with_options_test_all_query_options() {
-        let config = Config::new().unwrap();
-        let mut params = HashMap::<String, String>::new();
-        let query_options = QueryOptions {
-            datacenter: Some(String::from("test_datacenter")),
-            wait_index: None,
-            wait_time:  None
-        };
-        
-        update_params_with_options(&config, &mut params, Some(&query_options));
-
-        for (param_name, param_value) in &params {
-            println!("{} - {}", param_name, param_value);
-        }
-
-        assert_eq!(params.len(), 1);
-        assert_eq!(params.get("dc").unwrap(), "test_datacenter");
-    }
-}
