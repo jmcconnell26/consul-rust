@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use serde_json::Value;
 
 use crate::errors::Result;
-use crate::request::put_requests::put;
 use crate::request::get_requests::get;
+use crate::request::put_requests::put;
 use crate::{Client, QueryMeta, QueryOptions, WriteMeta, WriteOptions};
 
 #[serde(default)]

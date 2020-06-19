@@ -15,6 +15,7 @@ use crate::{Config, QueryOptions, WriteMeta, WriteOptions};
 
 pub mod delete_requests;
 pub mod get_requests;
+pub mod post_requests;
 pub mod put_requests;
 
 pub fn add_config_options(builder: RequestBuilder, config: &Config) -> RequestBuilder {
@@ -24,30 +25,36 @@ pub fn add_config_options(builder: RequestBuilder, config: &Config) -> RequestBu
     }
 }
 
-//fn  construct_write_request_builder<T: Serialize, R: DeserializeOwned>(
-//    path: &str,
-//    body: Option<&T>,
-//    config: &Config,
-//    mut params: HashMap<String, String>,
-//    options: Option<&WriteOptions>,
-//) -> RequestBuilder {
-//}
+fn construct_write_request_builder<T: Serialize, R: DeserializeOwned, F>(
+    path: &str,
+    body: Option<&T>,
+    config: &Config,
+    params: HashMap<String, String>,
+    request_builder_from_http_client: F,
+) -> Result<RequestBuilder>
+where
+    F: Fn(&HttpClient, Url) -> RequestBuilder,
+{
+    let url_str = format!("{}{}", config.address, path);
+    let url =
+        Url::parse_with_params(&url_str, params.iter()).chain_err(|| "Failed to parse URL")?;
 
-/*
-pub fn post<T: Serialize, R: DeserializeOwned>(path: &str,
-                                               body: Option<&T>,
-                                               config: &Config,
-                                               options: Option<&WriteOptions>)
-                                               -> Result<(R, WriteMeta)> {
-    let req = |http_client: &HttpClient, url: Url| -> RequestBuilder { http_client.post(url) };
-    write_with_body(path, body, config, options, req)
+    let builder = request_builder_from_http_client(&config.http_client, url);
+    let builder = if let Some(b) = body {
+        builder.json(b)
+    } else {
+        builder
+    };
+    let builder = add_config_options(builder, &config);
+
+    Ok(builder)
 }
-*/
 
 fn update_params_with_query_options(
     config: &Config,
     params: &mut HashMap<String, String>,
-    options: Option<&QueryOptions>) {
+    options: Option<&QueryOptions>,
+) {
     let datacenter: Option<&String> = options
         .and_then(|o| o.datacenter.as_ref())
         .or_else(|| config.datacenter.as_ref());
@@ -71,7 +78,7 @@ pub fn write_with_body<T: Serialize, R: DeserializeOwned, F>(
     config: &Config,
     mut params: HashMap<String, String>,
     options: Option<&WriteOptions>,
-    req: F,
+    request_builder_from_http_client: F,
 ) -> Result<(R, WriteMeta)>
 where
     F: Fn(&HttpClient, Url) -> RequestBuilder,
@@ -86,17 +93,15 @@ where
         params.insert(String::from("dc"), dc.to_owned());
     }
 
-    let url_str = format!("{}{}", config.address, path);
-    let url =
-        Url::parse_with_params(&url_str, params.iter()).chain_err(|| "Failed to parse URL")?;
-    let builder = req(&config.http_client, url);
-    let builder = if let Some(b) = body {
-        builder.json(b)
-    } else {
-        builder
-    };
-    let builder = add_config_options(builder, &config);
-    builder
+    let builder = construct_write_request_builder::<T, R, F>(
+        path,
+        body,
+        config,
+        params,
+        request_builder_from_http_client,
+    );
+
+    builder?
         .send()
         .chain_err(|| "HTTP request to consul failed")
         .and_then(|x| x.json().chain_err(|| "Failed to parse JSON"))
@@ -113,26 +118,22 @@ where
 #[cfg(test)]
 pub mod request_tests {
 
-    use rand::{thread_rng, Rng};
-    use rand::distributions::Alphanumeric;
-    use std::time::Duration;
     use super::*;
+    use rand::distributions::Alphanumeric;
+    use rand::{thread_rng, Rng};
+    use std::time::Duration;
 
     fn setup() -> (RequestBuilder, String) {
         let client = HttpClient::new();
         let builder = client.get("http://127.0.0.1");
 
-        let expected_token: String = thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(16)
-            .collect();
+        let expected_token: String = thread_rng().sample_iter(&Alphanumeric).take(16).collect();
 
         return (builder, expected_token);
     }
 
     #[test]
-    fn add_config_options_none()
-    {
+    fn add_config_options_none_test() {
         let (mut builder, _) = setup();
 
         let mut config = Config::new().unwrap();
@@ -147,8 +148,7 @@ pub mod request_tests {
     }
 
     #[test]
-    fn add_config_options_some_config_token()
-    {
+    fn add_config_options_some_config_token_test() {
         let (mut builder, expected_token) = setup();
 
         let mut config = Config::new().unwrap();
@@ -165,15 +165,83 @@ pub mod request_tests {
     }
 
     #[test]
-    fn update_params_with_query_options_test_all_options() {
+    fn construct_write_request_builder_with_params_and_no_body_test() {
+        let path = "api/";
+        let body = None;
+
+        let mut config = Config::new().unwrap();
+        config.address = String::from("http://127.0.0.1:8500/");
+
+        let mut params = HashMap::<String, String>::new();
+        params.insert(String::from("ParamName"), String::from("ParamValue"));
+
+        let request_builder_from_http_client =
+            |http_client: &HttpClient, url: Url| -> RequestBuilder { http_client.put(url) };
+
+        let builder = construct_write_request_builder::<String, String, _>(
+            path,
+            body,
+            &config,
+            params,
+            request_builder_from_http_client,
+        )
+        .unwrap();
+
+        let request = builder.build().unwrap();
+
+        assert_eq!(
+            request.url(),
+            &Url::parse("http://127.0.0.1:8500/api/?ParamName=ParamValue").unwrap()
+        );
+        assert!(request.body().is_none());
+    }
+
+    #[test]
+    fn construct_write_request_builder_with_no_params_and_body_test() {
+        let raw_body = String::from("body");
+        let path = "api/";
+        let body = Some(&raw_body);
+
+        let mut config = Config::new().unwrap();
+        config.address = String::from("http://127.0.0.1:8500/");
+
+        let params = HashMap::<String, String>::new();
+        let request_builder_from_http_client =
+            |http_client: &HttpClient, url: Url| -> RequestBuilder { http_client.put(url) };
+
+        let builder = construct_write_request_builder::<String, String, _>(
+            path,
+            body,
+            &config,
+            params,
+            request_builder_from_http_client,
+        )
+        .unwrap();
+
+        let request = builder.build().unwrap();
+
+        assert_eq!(
+            request.url(),
+            &Url::parse("http://127.0.0.1:8500/api/?").unwrap()
+        );
+
+        let body = request.body().unwrap();
+        let body_bytes = body.as_bytes().unwrap();
+        let body_string = str::from_utf8(body_bytes).unwrap();
+
+        assert_eq!("\"body\"", body_string);
+    }
+
+    #[test]
+    fn update_params_with_query_options_all_options_test() {
         let config = Config::new().unwrap();
         let mut params = HashMap::<String, String>::new();
         let query_options = QueryOptions {
             datacenter: Some(String::from("test_datacenter")),
             wait_index: Some(123),
-            wait_time:  Some(Duration::new(5,0)),
+            wait_time: Some(Duration::new(5, 0)),
         };
-        
+
         update_params_with_query_options(&config, &mut params, Some(&query_options));
 
         assert_eq!(params.len(), 3);
@@ -183,13 +251,13 @@ pub mod request_tests {
     }
 
     #[test]
-    fn update_params_with_query_options_no_options() {
+    fn update_params_with_query_options_no_options_test() {
         let config = Config::new().unwrap();
         let mut params = HashMap::<String, String>::new();
         let query_options = QueryOptions {
             datacenter: None,
             wait_index: None,
-            wait_time:  None,
+            wait_time: None,
         };
 
         update_params_with_query_options(&config, &mut params, Some(&query_options));

@@ -10,9 +10,9 @@ use std::time::Instant;
 
 use url::Url;
 
-use crate::{Config, QueryMeta, QueryOptions};
 use crate::errors::{Result, ResultExt};
 use crate::request::*;
+use crate::{Config, QueryMeta, QueryOptions};
 
 pub fn get<R: DeserializeOwned>(
     path: &str,
@@ -31,17 +31,17 @@ pub fn get<R: DeserializeOwned>(
     response
         .chain_err(|| "HTTP request to consul failed")
         .and_then(|r| {
-            let x: Option<Result<u64>> = r
-                .headers()
-                .get("X-Consul-Index")
-                .map(|bytes: &HeaderValue| -> Result<u64> {
-                    bytes
-                        .to_str()
-                        .chain_err(|| "Failed to parse valid UT8 for last index")
-                        .and_then(|s: &str| -> Result<u64> {
-                            u64::from_str(s)
-                                .chain_err(|| "Failed to parse valid number for last index")
-                        })
+            let x: Option<Result<u64>> =
+                r.headers()
+                    .get("X-Consul-Index")
+                    .map(|bytes: &HeaderValue| -> Result<u64> {
+                        bytes
+                            .to_str()
+                            .chain_err(|| "Failed to parse valid UT8 for last index")
+                            .and_then(|s: &str| -> Result<u64> {
+                                u64::from_str(s)
+                                    .chain_err(|| "Failed to parse valid number for last index")
+                            })
                     });
             let j = r.json().chain_err(|| "Failed to parse JSON response")?;
             match x {
@@ -107,7 +107,5 @@ pub fn get_vec<R: DeserializeOwned>(
                     request_time: Instant::now() - start,
                 },
             )
-        }
-    )
+        })
 }
-

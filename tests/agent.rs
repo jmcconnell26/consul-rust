@@ -1,7 +1,7 @@
 extern crate consul;
 use consul::agent::Agent;
 
-use consul::{Client,Config};
+use consul::{Client, Config};
 
 #[test]
 fn agent_checks_test() {
