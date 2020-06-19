@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::agent::AgentService;
 use crate::errors::Result;
-use crate::request::get;
+use crate::request::get_requests::get;
 use crate::{Client, QueryMeta, QueryOptions};
 
 #[serde(default)]

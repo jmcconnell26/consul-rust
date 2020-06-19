@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use crate::errors::Result;
-use crate::request::{get, get_vec, put};
+use crate::request::get_requests::{get, get_vec};
+use crate::request::put_requests::put;
 use crate::Client;
 
 #[serde(default)]
