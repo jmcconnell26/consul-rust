@@ -26,7 +26,7 @@ pub fn get<R: DeserializeOwned>(
     let url =
         Url::parse_with_params(&url_str, params.iter()).chain_err(|| "Failed to parse URL")?;
     let start = Instant::now();
-    let request_builder = add_config_options(config.http_client.get(url), &config);
+    let request_builder = add_x_token_from_config(config.http_client.get(url), &config);
     let response = request_builder.send();
     response
         .chain_err(|| "HTTP request to consul failed")
@@ -72,7 +72,7 @@ pub fn get_vec<R: DeserializeOwned>(
     let url =
         Url::parse_with_params(&url_str, params.iter()).chain_err(|| "Failed to parse URL")?;
     let start = Instant::now();
-    let request_builder = add_config_options(config.http_client.get(url), &config);
+    let request_builder = add_x_token_from_config(config.http_client.get(url), &config);
     let response = request_builder.send();
     response
         .chain_err(|| "HTTP request to consul failed")

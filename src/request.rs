@@ -18,7 +18,7 @@ pub mod get_requests;
 pub mod post_requests;
 pub mod put_requests;
 
-pub fn add_config_options(builder: RequestBuilder, config: &Config) -> RequestBuilder {
+pub fn add_x_token_from_config(builder: RequestBuilder, config: &Config) -> RequestBuilder {
     match &config.token {
         Some(val) => builder.header("X-Consul-Token", val),
         None => builder,
@@ -45,7 +45,7 @@ where
     } else {
         builder
     };
-    let builder = add_config_options(builder, &config);
+    let builder = add_x_token_from_config(builder, &config);
 
     Ok(builder)
 }
@@ -133,13 +133,13 @@ pub mod request_tests {
     }
 
     #[test]
-    fn add_config_options_none_test() {
+    fn add_x_token_from_config_none_test() {
         let (mut builder, _) = setup();
 
         let mut config = Config::new().unwrap();
         config.token = None;
 
-        builder = add_config_options(builder, &config);
+        builder = add_x_token_from_config(builder, &config);
 
         let request = builder.build().unwrap();
         let headers = request.headers();
@@ -148,13 +148,13 @@ pub mod request_tests {
     }
 
     #[test]
-    fn add_config_options_some_config_token_test() {
+    fn add_x_token_from_config_some_config_token_test() {
         let (mut builder, expected_token) = setup();
 
         let mut config = Config::new().unwrap();
         config.token = Some(expected_token.clone());
 
-        builder = add_config_options(builder, &config);
+        builder = add_x_token_from_config(builder, &config);
 
         let request = builder.build().unwrap();
         let headers = request.headers();
